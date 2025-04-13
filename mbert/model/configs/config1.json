@@ -1,0 +1,16 @@
+{
+    "bert_model": "bert-base-multilingual-cased",
+    "train_data": "./mbert/data/train.tsv",
+    "val_data": "./mbert/data/dev.tsv",
+    "batch_size": 32,
+    "max_length": 512,
+    "num_classes": 2,
+    "freeze_bert": true,
+    "unfreeze_layers": null,
+    "learning_rate": 0.001,
+    "weight_decay": 0.01,
+    "epochs": 50,
+    "patience": 5,
+    "model_save_dir": "./mbert/checkpoints"
+  }
+  

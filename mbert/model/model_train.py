@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
-import transformers
+import json
+import argparse
+import os
 from transformers import BertModel, BertTokenizer
 from bert_classifier import MultilingualBertClassifier
 from custom_dataset import TextDataset
@@ -77,24 +79,83 @@ def train(model,train_loader,val_loader,epochs,optimizer,criterion,patience,mode
         return epoch_val_loss_dict
 
 
+def load_config(config_path):
+    with open(config_path, 'r') as f:
+        return json.load(f)
+
+def main(config_dir, config_files):
+    if config_files:
+        config_paths = [os.path.join(config_dir, fname) for fname in config_files]
+    else:
+        # Use all .json files in the directory
+        config_paths = [
+            os.path.join(config_dir, fname)
+            for fname in os.listdir(config_dir)
+            if fname.endswith('.json')
+        ]
+
+    if not config_paths:
+        raise ValueError("No configuration files found.")
+
+    for config_path in config_paths:
+        print(f"\nLoading config from: {config_path}")
+        config = load_config(config_path)
+
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        bert_model = config.get("bert_model", "bert-base-multilingual-cased")
+        tokenizer = BertTokenizer.from_pretrained(bert_model)
+
+        train_loader = create_dataloader(
+            filepath=config["train_data"],
+            tokenizer=tokenizer,
+            batch_size=config.get("batch_size", 32),
+            max_length=config.get("max_length", 512),
+            shuffle=True
+        )
+        val_loader = create_dataloader(
+            filepath=config["val_data"],
+            tokenizer=tokenizer,
+            batch_size=config.get("batch_size", 32),
+            max_length=config.get("max_length", 512),
+            shuffle=False
+        )
+
+        model = MultilingualBertClassifier(
+            bert_model_name=bert_model,
+            num_classes=config.get("num_classes", 2),
+            freeze_bert=config.get("freeze_bert", True),
+            unfreeze_layers=config.get("unfreeze_layers", None),
+        ).to(device)
+
+        criterion = nn.CrossEntropyLoss()
+        optimizer = torch.optim.AdamW(
+            model.parameters(),
+            lr=config.get("learning_rate", 1e-3),
+            weight_decay=config.get("weight_decay", 0.01)
+        )
+
+        val_losses = train(
+            model=model,
+            train_loader=train_loader,
+            val_loader=val_loader,
+            epochs=config.get("epochs", 50),
+            optimizer=optimizer,
+            criterion=criterion,
+            patience=config.get("patience", 5),
+            model_save_dir=config.get("model_save_dir", "./checkpoints"),
+            device=device
+        )
+
+        print(f'Done {config_path}. Training stopped at epoch {min(val_losses,key=val_losses.get)}')
 
 
-if __name__ == '__main__':
+
+# python model_train.py --config_dir ./configs --configs config1.json config2.json
     
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    bert_model = 'bert-base-multilingual-cased'
-    tokenizer = BertTokenizer.from_pretrained(bert_model)
-    train_loader = create_dataloader(filepath = './mbert/data/train.tsv',tokenizer=tokenizer, batch_size=32, max_length=512,shuffle=True)
-    val_loader = create_dataloader(filepath = './mbert/data/dev.tsv',tokenizer=tokenizer, batch_size=32, max_length=512,shuffle=False)
-    model = MultilingualBertClassifier(
-        bert_model_name=bert_model,
-        num_classes=2,
-        freeze_bert=True,
-        unfreeze_layers=None,
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="Train models using configurations from a directory.")
+    parser.add_argument('--config_dir', type=str, required=True, help='Path to directory containing config files')
+    parser.add_argument('--configs', nargs='*', help='Specific config filenames to use (e.g., config1.json config2.json)')
+    args = parser.parse_args()
 
-    ).to(device=device)
-    criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3, weight_decay=0.01)
-    val_losses = train(model=model,train_loader=train_loader,val_loader=val_loader,epochs=50, optimizer=optimizer,criterion=criterion,patience = 5,model_save_dir='./mbert/checkpoints',device=device)
-        
-
+    main(args.config_dir, args.configs)

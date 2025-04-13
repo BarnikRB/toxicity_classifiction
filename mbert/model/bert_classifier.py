@@ -16,9 +16,8 @@ class MultilingualBertClassifier(nn.Module):
                 param.requires_grad = False
             if unfreeze_layers:
                 for name, param in self.bert.named_parameters():
-                    for layer in unfreeze_layers:
-                        if layer in name:
-                            param.requires_grad = True
+                    if any(layer in name for layer in unfreeze_layers):
+                        param.requires_grad = True
         self.classifier  = None
         if not simple: 
             self.classifier  =  nn.Sequential(
