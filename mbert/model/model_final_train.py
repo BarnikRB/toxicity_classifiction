@@ -33,7 +33,7 @@ def create_dataloader(filepath,tokenizer, batch_size=16, max_length=512,shuffle=
 
 
 def train(model,train_loader,epochs,optimizer,criterion,model_save_dir,device):
-    
+    # Same as model_train.py but with no early stopping based on validation error since the training and validation sets are combined
     epoch_val_loss_dict = {}
     for epoch in range(epochs):
         model.train()

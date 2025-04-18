@@ -18,6 +18,11 @@ import torch.nn.functional as F
 
 
 def evaluate(model, val_loader, criterion, device):
+    """
+    function for evaluating model performance on validation set
+    returns the prediction as well as probabilities for plotting ROC
+    """
+    
     model.eval()
     val_loss = 0.0
     all_preds = []
