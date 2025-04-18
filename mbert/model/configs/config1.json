@@ -1,0 +1,19 @@
+{
+    "name": "bert_frozen_plus_two_fc",
+    "bert_model": "bert-base-multilingual-cased",
+    "train_data": "./mbert/data/train.tsv",
+    "val_data": "./mbert/data/dev.tsv",
+    "batch_size": 32,
+    "max_length": 512,
+    "num_classes": 2,
+    "freeze_bert": true,
+    "unfreeze_layers": null,
+    "simple": false,
+    "learning_rate_classifier": 0.001,
+    "learning_rate_bert": 0.00002,
+    "weight_decay": 0.01,
+    "epochs": 10,
+    "patience": 3,
+    "model_save_dir": "./mbert/checkpoints/config1"
+  }
+  

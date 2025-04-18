@@ -1,0 +1,19 @@
+{
+    "name": "bert_frozen_plus_two_unfrozen_8_9_10_11_plus1fc",
+    "bert_model": "bert-base-multilingual-cased",
+    "train_data": "./mbert/data/train.tsv",
+    "val_data": "./mbert/data/dev.tsv",
+    "batch_size": 16,
+    "max_length": 512,
+    "num_classes": 2,
+    "freeze_bert": true,
+    "unfreeze_layers": ["encoder.layer.8","encoder.layer.9","encoder.layer.10", "encoder.layer.11"],
+    "simple": true,
+    "learning_rate_classifier": 0.001,
+    "learning_rate_bert": 0.00002,
+    "weight_decay": 0.01,
+    "epochs": 1,
+    "patience": 3,
+    "model_save_dir": "./mbert/checkpoints/config3"
+  }
+  
