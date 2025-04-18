@@ -8,6 +8,22 @@ from bert_classifier import MultilingualBertClassifier
 from custom_dataset import TextDataset
 from torch.utils.data import DataLoader
 from transformers import DataCollatorWithPadding
+import numpy as np 
+import random
+
+def set_seed(seed: int = 42):
+    """
+    Sets seeds for reproducibility across Python, NumPy, and PyTorch.
+    Leaves cuDNN settings unchanged to avoid impacting performance.
+    """
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+
 
 def create_dataloader(filepath,tokenizer, batch_size=16, max_length=512,shuffle=False):
     dataset = TextDataset(file_path=filepath,tokenizer=tokenizer,max_length=max_length)
@@ -49,7 +65,7 @@ def train(model,train_loader,val_loader,epochs,optimizer,criterion,patience,mode
             optimizer.step()
             running_loss += loss.item()
             if (idx+1)%100 == 0:
-                print(f'Done {idx+1}')
+                print(f'Done {idx+1} batches')
         running_loss /= len(train_loader)
         print(f'running_loss {running_loss}')
         model.eval()
@@ -70,13 +86,15 @@ def train(model,train_loader,val_loader,epochs,optimizer,criterion,patience,mode
         if continue_training:
             if counter == 0:
                 epoch_val_loss_dict[epoch+1] = val_loss
+                if not os.path.exists(model_save_dir):
+                    os.makedirs(model_save_dir)
                 model_save_path = f'{model_save_dir}/checkpoint_best.pt'
                 torch.save(model.state_dict(),model_save_path)
         else:
             break
         
         print(f'Epoch [{epoch+1}/{epochs}], Train Loss: {running_loss:.4f}, Validation Loss: {val_loss:.4f}')
-        return epoch_val_loss_dict
+    return epoch_val_loss_dict
 
 
 def load_config(config_path):
@@ -97,8 +115,12 @@ def main(config_dir, config_files):
     if not config_paths:
         raise ValueError("No configuration files found.")
 
-    for config_path in config_paths:
+    for idx,config_path in enumerate(config_paths):
+        
+        
         print(f"\nLoading config from: {config_path}")
+        
+        set_seed(42)
         config = load_config(config_path)
 
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -125,12 +147,14 @@ def main(config_dir, config_files):
             num_classes=config.get("num_classes", 2),
             freeze_bert=config.get("freeze_bert", True),
             unfreeze_layers=config.get("unfreeze_layers", None),
+            simple=config.get("simple", False),
         ).to(device)
 
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.AdamW(
-            model.parameters(),
-            lr=config.get("learning_rate", 1e-3),
+            [{'params':model.bert.parameters(),'lr':config.get("lr_bert", 2e-5)},
+             {'params':model.classifier.parameters(),'lr':config.get("lr_classifier", 1e-3)},
+             ],
             weight_decay=config.get("weight_decay", 0.01)
         )
 
